@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supertrend Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0f;--bg2:#16161a;--bg3:#1d1d23;--bg4:#252530;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.13);
+  --text:#ededf0;--muted:#606068;--dim:#2e2e36;
+  --bull:#22c55e;--bull-bg:rgba(34,197,94,0.1);
+  --bear:#ef4444;--bear-bg:rgba(239,68,68,0.1);
+  --amber:#f59e0b;--flip-bg:rgba(245,158,11,0.1);
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
+.wrap{max-width:1280px;margin:0 auto;padding:1.5rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.loading{background:var(--amber);animation:blink 1s infinite}
+.dot.done{background:var(--bull);animation:blink 4s infinite}
+.dot.error{background:var(--bear)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.hdr h1{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.hdr p{font-size:11px;color:var(--muted);margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.btn{padding:5px 12px;font-size:11px;border:1px solid var(--border2);border-radius:5px;cursor:pointer;background:var(--bg2);color:var(--muted);transition:all .15s}
+.btn:hover{color:var(--text)}.btn:disabled{opacity:.35;cursor:default}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.25rem}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:12px 14px}
+.stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.stat-v{font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.sv-bull{color:var(--bull)}.sv-bear{color:var(--bear)}.sv-neut{color:var(--muted)}.sv-flip{color:var(--amber)}
+.tf-row{display:flex;gap:8px;margin-bottom:.85rem;flex-wrap:wrap}
+.tf-grp{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.tf-btn{padding:5px 13px;font-size:11px;font-weight:600;border:none;background:transparent;color:var(--muted);cursor:pointer;transition:color .15s}
+.tf-btn.active{background:var(--bg4);color:var(--text)}
+.tf-sep{width:1px;background:var(--border)}
+.narr-bar{display:flex;gap:5px;margin-bottom:.75rem;flex-wrap:wrap}
+.np{padding:4px 11px;font-size:11px;font-weight:500;border:1px solid var(--border);border-radius:20px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.np:hover{border-color:var(--border2);color:var(--text)}
+.np.active{border-color:var(--border2);color:var(--text);background:var(--bg2)}
+.np.na-ai.active{border-color:#818cf8;color:#818cf8;background:rgba(129,140,248,.08)}
+.np.na-def.active{border-color:#60a5fa;color:#60a5fa;background:rgba(96,165,250,.08)}
+.np.na-nrg.active{border-color:#fb923c;color:#fb923c;background:rgba(251,146,60,.08)}
+.np.na-met.active{border-color:#fbbf24;color:#fbbf24;background:rgba(251,191,36,.08)}
+.np.na-bio.active{border-color:#34d399;color:#34d399;background:rgba(52,211,153,.08)}
+.np.na-cryp.active{border-color:#a78bfa;color:#a78bfa;background:rgba(167,139,250,.08)}
+.np.na-cons.active{border-color:#f472b6;color:#f472b6;background:rgba(244,114,182,.08)}
+.np.na-reit.active{border-color:#94a3b8;color:#94a3b8;background:rgba(148,163,184,.08)}
+.np.na-etf.active{border-color:#2dd4bf;color:#2dd4bf;background:rgba(45,212,191,.08)}
+.np.na-com.active{border-color:#fb923c;color:#fb923c;background:rgba(251,146,60,.08)}
+.np.na-base.active{border-color:#a78bfa;color:#a78bfa;background:rgba(167,139,250,.08)}
+.sig-row{display:flex;gap:5px;margin-bottom:1rem;flex-wrap:wrap}
+.sf{padding:4px 11px;font-size:11px;border:1px solid var(--border);border-radius:5px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.sf:hover{color:var(--text);border-color:var(--border2)}
+.sf.active{background:var(--bg2);border-color:var(--border2);color:var(--text)}
+.sf.sf-bull.active{background:var(--bull-bg);border-color:rgba(34,197,94,.3);color:var(--bull)}
+.sf.sf-bear.active{background:var(--bear-bg);border-color:rgba(239,68,68,.3);color:var(--bear)}
+.sf.sf-flip.active{background:var(--flip-bg);border-color:rgba(245,158,11,.3);color:var(--amber)}
+.prog-lbl{font-size:11px;color:var(--muted);margin-bottom:5px;min-height:15px}
+.prog-bar{height:2px;background:var(--dim);border-radius:2px;overflow:hidden;margin-bottom:1rem}
+.prog-fill{height:100%;background:var(--bull);border-radius:2px;transition:width .35s}
+.err-box{background:var(--bear-bg);border:1px solid rgba(239,68,68,.2);border-radius:7px;padding:9px 13px;font-size:11px;color:var(--bear);margin-bottom:.85rem;display:none;line-height:1.65}
+.tbl-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:11px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:8px 11px;text-align:left;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:var(--bg3);border-bottom:1px solid var(--border);white-space:nowrap}
+thead th.c{text-align:center}thead th.r{text-align:right}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--bg3)}
+tbody td{padding:7px 11px;vertical-align:middle}
+.asym{font-weight:700;font-size:12px;color:var(--text)}
+.aname{font-size:10px;color:var(--muted);margin-top:1px}
+.flip-badge{display:inline-block;font-size:8px;font-weight:800;background:var(--flip-bg);color:var(--amber);border:1px solid rgba(245,158,11,.25);padding:1px 5px;border-radius:3px;margin-left:5px;letter-spacing:.05em;vertical-align:middle}
+.ntag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;display:inline-block;white-space:nowrap;letter-spacing:.04em}
+.t-ai{background:rgba(129,140,248,.1);color:#818cf8}
+.t-def{background:rgba(96,165,250,.1);color:#60a5fa}
+.t-nrg{background:rgba(251,146,60,.1);color:#fb923c}
+.t-met{background:rgba(251,191,36,.1);color:#fbbf24}
+.t-bio{background:rgba(52,211,153,.1);color:#34d399}
+.t-cryp{background:rgba(167,139,250,.1);color:#a78bfa}
+.t-cons{background:rgba(244,114,182,.1);color:#f472b6}
+.t-reit{background:rgba(148,163,184,.1);color:#94a3b8}
+.t-etf{background:rgba(45,212,191,.1);color:#2dd4bf}
+.t-com{background:rgba(251,146,60,.1);color:#fb923c}
+.t-base{background:rgba(167,139,250,.1);color:#a78bfa}
+.sig{display:inline-flex;align-items:center;justify-content:center;gap:4px;font-size:10px;font-weight:800;padding:3px 9px;border-radius:4px;min-width:60px;letter-spacing:.04em}
+.sdot{width:4px;height:4px;border-radius:50%;flex-shrink:0}
+.sig.bull{background:var(--bull-bg);color:var(--bull)}.sig.bull .sdot{background:var(--bull)}
+.sig.bear{background:var(--bear-bg);color:var(--bear)}.sig.bear .sdot{background:var(--bear)}
+.sig.wait{background:var(--bg3);color:var(--dim)}.sig.wait .sdot{background:var(--dim)}
+.sig.err{background:var(--bear-bg);color:rgba(239,68,68,.35)}.sig.err .sdot{background:rgba(239,68,68,.35)}
+.price{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.msg-row td{text-align:center;padding:3rem;color:var(--muted);font-size:13px}
+.footer{margin-top:10px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.footer span{font-size:10px;color:var(--muted)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px}
+
+/* Flip log drawer */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;backdrop-filter:blur(2px)}
+.drawer{position:fixed;right:0;top:0;height:100vh;width:360px;background:var(--bg2);border-left:1px solid var(--border2);z-index:101;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease}
+.drawer.open{transform:translateX(0)}
+.drawer-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+.drawer-hdr h2{font-size:13px;font-weight:600}
+.drawer-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px}
+.drawer-close:hover{color:var(--text);background:var(--bg3)}
+.log-list{flex:1;overflow-y:auto;padding:6px 0}
+.log-empty{text-align:center;padding:2rem;color:var(--muted);font-size:12px}
+.log-item{display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border)}
+.log-item:hover{background:var(--bg3)}
+.log-icon{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;font-weight:800}
+.log-icon.bull{background:var(--bull-bg);color:var(--bull)}
+.log-icon.bear{background:var(--bear-bg);color:var(--bear)}
+.log-content{flex:1;min-width:0}
+.log-sym{font-size:12px;font-weight:700;color:var(--text)}
+.log-detail{font-size:11px;color:var(--muted);margin-top:1px}
+.log-time{font-size:10px;color:var(--muted);flex-shrink:0;margin-top:2px}
+.log-badge{position:absolute;top:-5px;right:-5px;background:var(--amber);color:#000;font-size:8px;font-weight:800;width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;display:none}
+
+/* Alignment */
+.align-pip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px}
+.align-4{background:rgba(34,197,94,.15);color:var(--bull)}
+.align-3{background:rgba(34,197,94,.08);color:rgba(34,197,94,.7)}
+.align-2{background:rgba(255,255,255,.05);color:var(--muted)}
+.align-bear-4{background:rgba(239,68,68,.15);color:var(--bear)}
+.align-bear-3{background:rgba(239,68,68,.08);color:rgba(239,68,68,.7)}
+
+/* Row tinting */
+tbody tr.row-bull{border-left:2px solid rgba(34,197,94,.4);background:rgba(34,197,94,0.025)}
+tbody tr.row-bull:hover{background:rgba(34,197,94,0.05)}
+tbody tr.row-bear{border-left:2px solid rgba(239,68,68,.4);background:rgba(239,68,68,0.025)}
+tbody tr.row-bear:hover{background:rgba(239,68,68,0.05)}
+tbody tr{border-left:2px solid transparent}
+
+/* Sortable headers */
+thead th.sortable{cursor:pointer;transition:color .15s}
+thead th.sortable:hover{color:var(--text)}
+thead th.sorted{color:var(--text)}
+
+/* % change since flip */
+.pct-cell{text-align:right;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pct-bull{color:var(--bull)}.pct-bear{color:var(--bear)}.pct-na{color:var(--dim)}
+</style>
+</head>
+<body>
+<!-- Flip log drawer -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-hdr">
+    <h2>Flip history</h2>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn" style="font-size:10px;padding:3px 9px" onclick="clearFlipLog()">Clear</button>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+  </div>
+  <div class="log-list" id="logList"></div>
+</div>
+
+<div class="wrap">
+
+<div class="hdr">
+  <div class="hdr-left">
+    <div class="dot loading" id="liveDot"></div>
+    <div>
+      <h1>Supertrend Signal Dashboard</h1>
+      <p>ATR(10) · Factor 3.0 · 4H / 1D / 1W / 1M · FLIP = direction changed on last closed bar</p>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span style="font-size:11px;color:var(--muted)" id="lastUpdated"></span>
+    <button class="btn" style="border-color:rgba(245,158,11,.35);color:var(--amber);position:relative" onclick="openDrawer()">
+      Flip log <span class="log-badge" id="logBadge"></span>
+    </button>
+    <button class="btn" id="refreshBtn" onclick="refreshAll()">Refresh</button>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-l">Bullish</div><div class="stat-v sv-bull" id="sBull">—</div></div>
+  <div class="stat"><div class="stat-l">Bearish</div><div class="stat-v sv-bear" id="sBear">—</div></div>
+  <div class="stat"><div class="stat-l">Neutral</div><div class="stat-v sv-neut" id="sNeut">—</div></div>
+  <div class="stat"><div class="stat-l">New flips</div><div class="stat-v sv-flip" id="sFlip">—</div></div>
+</div>
+
+<div class="tf-row">
+  <div class="tf-grp">
+    <button class="tf-btn active" onclick="setTF(this,'4h')">4H</button>
+    <div class="tf-sep"></div>
+    <button class="tf-btn" onclick="setTF(this,'1day')">1D</button>
+    <div class="tf-sep"></div>
+    <button class="tf-btn" onclick="setTF(this,'1week')">1W</button>
+    <div class="tf-sep"></div>
+    <button class="tf-btn" onclick="setTF(this,'1month')">1M</button>
+  </div>
+</div>
+
+<div class="narr-bar">
+  <button class="np active"    onclick="setNarr(this,'all')">All</button>
+  <button class="np na-ai"     onclick="setNarr(this,'ai')">AI / Semi</button>
+  <button class="np na-def"    onclick="setNarr(this,'def')">Defense</button>
+  <button class="np na-nrg"    onclick="setNarr(this,'nrg')">Energy</button>
+  <button class="np na-met"    onclick="setNarr(this,'met')">Metals</button>
+  <button class="np na-bio"    onclick="setNarr(this,'bio')">Biotech</button>
+  <button class="np na-cryp"   onclick="setNarr(this,'cryp')">Crypto Infra</button>
+  <button class="np na-cons"   onclick="setNarr(this,'cons')">Consumer</button>
+  <button class="np na-reit"   onclick="setNarr(this,'reit')">REITs</button>
+  <button class="np na-etf"    onclick="setNarr(this,'etf')">ETFs</button>
+  <button class="np na-com"    onclick="setNarr(this,'com')">Commodities</button>
+  <button class="np na-base"   onclick="setNarr(this,'base')">Crypto</button>
+</div>
+
+<div class="sig-row">
+  <button class="sf active"      onclick="setSig(this,'all')">All signals</button>
+  <button class="sf sf-bull"     onclick="setSig(this,'bull')">Bullish only</button>
+  <button class="sf sf-bear"     onclick="setSig(this,'bear')">Bearish only</button>
+  <button class="sf sf-flip"     onclick="setSig(this,'flip')">New flips only</button>
+</div>
+
+<div class="prog-lbl" id="progLbl">Initializing...</div>
+<div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+<div class="err-box" id="errBox"></div>
+
+<div class="tbl-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:28px">#</th>
+        <th style="width:115px">Asset</th>
+        <th style="width:75px">Narrative</th>
+        <th class="c sortable" style="width:64px" id="th-4h"     onclick="setSort('4h')">4H</th>
+        <th class="c sortable" style="width:64px" id="th-1day"   onclick="setSort('1day')">1D</th>
+        <th class="c sortable" style="width:64px" id="th-1week"  onclick="setSort('1week')">1W</th>
+        <th class="c sortable" style="width:64px" id="th-1month" onclick="setSort('1month')">1M</th>
+        <th class="c sortable" style="width:66px" id="th-align"  onclick="setSort('align')">Align</th>
+        <th class="r sortable" style="width:66px" id="th-pct"    onclick="setSort('pct')">% Flip</th>
+        <th class="r" style="width:82px">Price</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr class="msg-row"><td colspan="10">Loading market data...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <span>Supertrend ATR(10) · Factor 3.0 · Bull = price above lower band · Bear = price below upper band</span>
+  <span id="footNote"></span>
+</div>
+</div>
+
+<script>
+const API_KEY  = '9b987a9b72ea4aac8b3f8e3245968683';
+const ATR_LEN  = 10;
+const FACTOR   = 3.0;
+const DELAY_MS = 8200;
+const TF_ALL   = ['4h','1day','1week','1month'];
+
+const ASSETS = [
+  // AI / Semiconductors
+  {sym:'NVDA', name:'NVIDIA',            n:'ai',   td:'NVDA'},
+  {sym:'AMD',  name:'AMD',               n:'ai',   td:'AMD'},
+  {sym:'AVGO', name:'Broadcom',          n:'ai',   td:'AVGO'},
+  {sym:'SMCI', name:'Super Micro',       n:'ai',   td:'SMCI'},
+  {sym:'ARM',  name:'Arm Holdings',      n:'ai',   td:'ARM'},
+  {sym:'PLTR', name:'Palantir',          n:'ai',   td:'PLTR'},
+  {sym:'AI',   name:'C3.ai',             n:'ai',   td:'AI'},
+  {sym:'SOUN', name:'SoundHound',        n:'ai',   td:'SOUN'},
+  {sym:'BBAI', name:'BigBear.ai',        n:'ai',   td:'BBAI'},
+  {sym:'IONQ', name:'IonQ',              n:'ai',   td:'IONQ'},
+  {sym:'RGTI', name:'Rigetti',           n:'ai',   td:'RGTI'},
+  {sym:'QUBT', name:'Quantum Computing', n:'ai',   td:'QUBT'},
+  {sym:'MRVL', name:'Marvell Tech',      n:'ai',   td:'MRVL'},
+  {sym:'ALAB', name:'Astera Labs',       n:'ai',   td:'ALAB'},
+  {sym:'CRDO', name:'Credo Tech',        n:'ai',   td:'CRDO'},
+  {sym:'TSM',  name:'TSMC',              n:'ai',   td:'TSM'},
+  // Defense & Aerospace
+  {sym:'LMT',  name:'Lockheed Martin',   n:'def',  td:'LMT'},
+  {sym:'RTX',  name:'RTX Corp',          n:'def',  td:'RTX'},
+  {sym:'NOC',  name:'Northrop Grumman',  n:'def',  td:'NOC'},
+  {sym:'GD',   name:'General Dynamics',  n:'def',  td:'GD'},
+  {sym:'HII',  name:'Huntington Ing.',   n:'def',  td:'HII'},
+  {sym:'KTOS', name:'Kratos Defense',    n:'def',  td:'KTOS'},
+  {sym:'RKLB', name:'Rocket Lab',        n:'def',  td:'RKLB'},
+  {sym:'ASTS', name:'AST SpaceMobile',   n:'def',  td:'ASTS'},
+  {sym:'JOBY', name:'Joby Aviation',     n:'def',  td:'JOBY'},
+  {sym:'ACHR', name:'Archer Aviation',   n:'def',  td:'ACHR'},
+  // Energy
+  {sym:'XOM',  name:'ExxonMobil',        n:'nrg',  td:'XOM'},
+  {sym:'CVX',  name:'Chevron',           n:'nrg',  td:'CVX'},
+  {sym:'OXY',  name:'Occidental',        n:'nrg',  td:'OXY'},
+  {sym:'MRO',  name:'Marathon Oil',      n:'nrg',  td:'MRO'},
+  {sym:'SM',   name:'SM Energy',         n:'nrg',  td:'SM'},
+  {sym:'CIVI', name:'Civitas Res.',      n:'nrg',  td:'CIVI'},
+  {sym:'CCJ',  name:'Cameco',            n:'nrg',  td:'CCJ'},
+  {sym:'UEC',  name:'Uranium Energy',    n:'nrg',  td:'UEC'},
+  {sym:'DNN',  name:'Denison Mines',     n:'nrg',  td:'DNN'},
+  {sym:'NXE',  name:'NexGen Energy',     n:'nrg',  td:'NXE'},
+  {sym:'UUUU', name:'Energy Fuels',      n:'nrg',  td:'UUUU'},
+  {sym:'LEU',  name:'Centrus Energy',    n:'nrg',  td:'LEU'},
+  {sym:'AR',   name:'Antero Resources',  n:'nrg',  td:'AR'},
+  {sym:'TELL', name:'Tellurian',         n:'nrg',  td:'TELL'},
+  // Precious Metals & Mining
+  {sym:'GLD',  name:'Gold ETF',          n:'met',  td:'GLD'},
+  {sym:'SLV',  name:'Silver ETF',        n:'met',  td:'SLV'},
+  {sym:'GDX',  name:'Gold Miners ETF',   n:'met',  td:'GDX'},
+  {sym:'GDXJ', name:'Jr Gold Miners',    n:'met',  td:'GDXJ'},
+  {sym:'NEM',  name:'Newmont',           n:'met',  td:'NEM'},
+  {sym:'AEM',  name:'Agnico Eagle',      n:'met',  td:'AEM'},
+  {sym:'PAAS', name:'Pan American Sil.', n:'met',  td:'PAAS'},
+  {sym:'AG',   name:'First Majestic',    n:'met',  td:'AG'},
+  {sym:'EXK',  name:'Endeavour Silver',  n:'met',  td:'EXK'},
+  {sym:'SILV', name:'SilverCrest',       n:'met',  td:'SILV'},
+  {sym:'WPM',  name:'Wheaton Precious',  n:'met',  td:'WPM'},
+  {sym:'MAG',  name:'MAG Silver',        n:'met',  td:'MAG'},
+  // Biotech / Healthcare
+  {sym:'XBI',  name:'Biotech ETF',       n:'bio',  td:'XBI'},
+  {sym:'ARKG', name:'ARK Genomics ETF',  n:'bio',  td:'ARKG'},
+  {sym:'MRNA', name:'Moderna',           n:'bio',  td:'MRNA'},
+  {sym:'BNTX', name:'BioNTech',          n:'bio',  td:'BNTX'},
+  {sym:'RXRX', name:'Recursion Pharma',  n:'bio',  td:'RXRX'},
+  {sym:'BEAM', name:'Beam Therapeutics', n:'bio',  td:'BEAM'},
+  {sym:'EDIT', name:'Editas Medicine',   n:'bio',  td:'EDIT'},
+  {sym:'CRSP', name:'CRISPR Tx',         n:'bio',  td:'CRSP'},
+  {sym:'NTLA', name:'Intellia Tx',       n:'bio',  td:'NTLA'},
+  {sym:'PACB', name:'PacBio',            n:'bio',  td:'PACB'},
+  {sym:'NVAX', name:'Novavax',           n:'bio',  td:'NVAX'},
+  {sym:'ACMR', name:'ACM Research',      n:'bio',  td:'ACMR'},
+  // Crypto Infrastructure
+  {sym:'COIN', name:'Coinbase',          n:'cryp', td:'COIN'},
+  {sym:'MSTR', name:'MicroStrategy',     n:'cryp', td:'MSTR'},
+  {sym:'MARA', name:'MARA Holdings',     n:'cryp', td:'MARA'},
+  {sym:'RIOT', name:'Riot Platforms',    n:'cryp', td:'RIOT'},
+  {sym:'CLSK', name:'CleanSpark',        n:'cryp', td:'CLSK'},
+  {sym:'HUT',  name:'Hut 8',             n:'cryp', td:'HUT'},
+  {sym:'BTBT', name:'Bit Digital',       n:'cryp', td:'BTBT'},
+  {sym:'CIFR', name:'Cipher Mining',     n:'cryp', td:'CIFR'},
+  {sym:'CORZ', name:'Core Scientific',   n:'cryp', td:'CORZ'},
+  {sym:'HOOD', name:'Robinhood',         n:'cryp', td:'HOOD'},
+  {sym:'SQ',   name:'Block Inc',         n:'cryp', td:'SQ'},
+  // Consumer Discretionary
+  {sym:'AMZN', name:'Amazon',            n:'cons', td:'AMZN'},
+  {sym:'SHOP', name:'Shopify',           n:'cons', td:'SHOP'},
+  {sym:'CELH', name:'Celsius Holdings',  n:'cons', td:'CELH'},
+  {sym:'ELF',  name:'e.l.f. Beauty',     n:'cons', td:'ELF'},
+  {sym:'ONON', name:'On Holding',        n:'cons', td:'ONON'},
+  {sym:'DUOL', name:'Duolingo',          n:'cons', td:'DUOL'},
+  {sym:'APP',  name:'AppLovin',          n:'cons', td:'APP'},
+  {sym:'RBLX', name:'Roblox',            n:'cons', td:'RBLX'},
+  {sym:'TTD',  name:'The Trade Desk',    n:'cons', td:'TTD'},
+  {sym:'DKNG', name:'DraftKings',        n:'cons', td:'DKNG'},
+  {sym:'CHWY', name:'Chewy',             n:'cons', td:'CHWY'},
+  {sym:'W',    name:'Wayfair',           n:'cons', td:'W'},
+  // REITs
+  {sym:'VNQ',  name:'RE ETF',            n:'reit', td:'VNQ'},
+  {sym:'AMT',  name:'American Tower',    n:'reit', td:'AMT'},
+  {sym:'EQIX', name:'Equinix',           n:'reit', td:'EQIX'},
+  {sym:'PLD',  name:'Prologis',          n:'reit', td:'PLD'},
+  {sym:'O',    name:'Realty Income',     n:'reit', td:'O'},
+  {sym:'IRM',  name:'Iron Mountain',     n:'reit', td:'IRM'},
+  {sym:'WELL', name:'Welltower',         n:'reit', td:'WELL'},
+  {sym:'SPG',  name:'Simon Property',    n:'reit', td:'SPG'},
+  {sym:'COLD', name:'Americold',         n:'reit', td:'COLD'},
+  {sym:'IIPR', name:'Innovative Ind.',   n:'reit', td:'IIPR'},
+  // Macro ETFs
+  {sym:'ARKK', name:'ARK Innovation',    n:'etf',  td:'ARKK'},
+  {sym:'COPX', name:'Copper Miners ETF', n:'etf',  td:'COPX'},
+  {sym:'URA',  name:'Uranium ETF',       n:'etf',  td:'URA'},
+  {sym:'BLOK', name:'Blockchain ETF',    n:'etf',  td:'BLOK'},
+  {sym:'IBB',  name:'Biotech ETF',       n:'etf',  td:'IBB'},
+  {sym:'XLE',  name:'Energy ETF',        n:'etf',  td:'XLE'},
+  {sym:'XHB',  name:'Homebuilders ETF',  n:'etf',  td:'XHB'},
+  {sym:'TAN',  name:'Solar ETF',         n:'etf',  td:'TAN'},
+  {sym:'SPY',  name:'S&P 500 ETF',       n:'etf',  td:'SPY'},
+  {sym:'QQQ',  name:'Nasdaq ETF',        n:'etf',  td:'QQQ'},
+  // Commodities
+  {sym:'XAU',    name:'Gold Spot',       n:'com',  td:'XAU/USD'},
+  {sym:'XAG',    name:'Silver Spot',     n:'com',  td:'XAG/USD'},
+  {sym:'WTI',    name:'Crude Oil',       n:'com',  td:'WTI/USD'},
+  {sym:'XCU',    name:'Copper Spot',     n:'com',  td:'XCU/USD'},
+  {sym:'CORN',   name:'Corn Futures',    n:'com',  td:'C_1'},
+  {sym:'WHEAT',  name:'Wheat Futures',   n:'com',  td:'ZW1!'},
+  {sym:'NATGAS', name:'Natural Gas',     n:'com',  td:'NG1!'},
+  // Base Crypto
+  {sym:'BTC',  name:'Bitcoin',           n:'base', td:'BTC/USD'},
+  {sym:'ETH',  name:'Ethereum',          n:'base', td:'ETH/USD'},
+  {sym:'SOL',  name:'Solana',            n:'base', td:'SOL/USD'},
+  {sym:'BNB',  name:'BNB',               n:'base', td:'BNB/USD'},
+  {sym:'XRP',  name:'XRP',               n:'base', td:'XRP/USD'},
+  {sym:'ADA',  name:'Cardano',           n:'base', td:'ADA/USD'},
+  {sym:'DOGE', name:'Dogecoin',          n:'base', td:'DOGE/USD'},
+  {sym:'AVAX', name:'Avalanche',         n:'base', td:'AVAX/USD'},
+];
+
+let currentTF='4h', currentNarr='all', currentSig='all';
+let sortCol='4h', sortDir=1;
+let sigCache={}, priceCache={}, flipCache={};
+let flipPriceCache={};  // price at moment of flip per [tf][sym]
+let alignCache={};      // [sym] = {score, dir, total}
+let isLoading=false, errLog=[];
+const LOG_KEY='st_flips_v1';
+let flipLog=[];
+
+// Supertrend — exact Pine port: RMA ATR, ratchet bands, direction flip on band cross
+function calcSupertrend(H, L, C) {
+  const n=H.length, tr=new Array(n), atr=new Array(n).fill(0);
+  const fu=new Array(n).fill(0), fl=new Array(n).fill(0), dir=new Array(n).fill(1);
+  tr[0]=H[0]-L[0];
+  for(let i=1;i<n;i++) tr[i]=Math.max(H[i]-L[i],Math.abs(H[i]-C[i-1]),Math.abs(L[i]-C[i-1]));
+  let s=0; for(let i=0;i<ATR_LEN;i++) s+=tr[i];
+  atr[ATR_LEN-1]=s/ATR_LEN;
+  for(let i=ATR_LEN;i<n;i++) atr[i]=(atr[i-1]*(ATR_LEN-1)+tr[i])/ATR_LEN;
+  for(let i=ATR_LEN-1;i<n;i++){
+    const hl2=(H[i]+L[i])/2, bu=hl2+FACTOR*atr[i], bl=hl2-FACTOR*atr[i];
+    if(i===ATR_LEN-1){fu[i]=bu;fl[i]=bl;dir[i]=C[i]>bu?-1:1;continue;}
+    fu[i]=C[i-1]<=fu[i-1]?Math.min(bu,fu[i-1]):bu;
+    fl[i]=C[i-1]>=fl[i-1]?Math.max(bl,fl[i-1]):bl;
+    dir[i]=dir[i-1]===1?(C[i]>fu[i]?-1:1):(C[i]<fl[i]?1:-1);
+  }
+  const lastDir=dir[n-1];
+  const lastBand=lastDir===-1?fl[n-1]:fu[n-1];
+  return{dir,lastBand,fl,fu};
+}
+
+function getSig(H,L,C){
+  if(!H||H.length<ATR_LEN+2) return 'wait';
+  const {dir}=calcSupertrend(H,L,C); return dir[dir.length-1]===-1?'bull':'bear';
+}
+function getPrev(H,L,C){
+  if(!H||H.length<ATR_LEN+3) return 'wait';
+  const {dir}=calcSupertrend(H,L,C); return dir[dir.length-2]===-1?'bull':'bear';
+}
+function getFlipPrice(H,L,C){
+  // Returns the close price on the bar when the flip occurred
+  if(!H||H.length<ATR_LEN+3) return null;
+  const {dir}=calcSupertrend(H,L,C);
+  // Walk back to find last flip bar
+  for(let i=dir.length-1;i>0;i--){
+    if(dir[i]!==dir[i-1]) return C[i]; // close on flip bar
+  }
+  return null;
+}
+
+async function fetchOHLC(sym,interval){
+  const size=interval==='4h'?200:interval==='1day'?150:100;
+  const url=`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(sym)}&interval=${interval}&outputsize=${size}&apikey=${API_KEY}`;
+  for(let t=0;t<3;t++){
+    try{
+      const r=await fetch(url); if(!r.ok) return{error:`HTTP ${r.status}`};
+      const d=await r.json();
+      if(d.status==='error'){if(d.code===429){await sleep(18000);continue;} return{error:d.message||'API error'};}
+      if(!d.values?.length) return{error:'No data'};
+      const v=d.values.slice().reverse();
+      return{highs:v.map(x=>+x.high),lows:v.map(x=>+x.low),closes:v.map(x=>+x.close),lastPrice:+v[v.length-1].close};
+    }catch(e){if(t<2)await sleep(4000);}
+  }
+  return{error:'Failed'};
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+const NL={ai:'AI/Semi',def:'Defense',nrg:'Energy',met:'Metals',bio:'Biotech',cryp:'Crypto Infra',cons:'Consumer',reit:'REIT',etf:'ETF',com:'Commodity',base:'Crypto'};
+
+// ─── Flip log ──────────────────────────────────────────────────────────────────
+function loadFlipLog(){try{flipLog=JSON.parse(localStorage.getItem(LOG_KEY)||'[]');}catch(e){flipLog=[];}}
+function saveFlipLog(){try{localStorage.setItem(LOG_KEY,JSON.stringify(flipLog.slice(0,100)));}catch(e){}}
+function recordFlip(sym,name,tf,from,to){
+  flipLog.unshift({sym,name,tf,from,to,ts:Date.now()});
+  saveFlipLog(); updateLogBadge(); renderLog();
+}
+function clearFlipLog(){flipLog=[];saveFlipLog();updateLogBadge();renderLog();}
+function updateLogBadge(){
+  const b=document.getElementById('logBadge');
+  const n=flipLog.filter(f=>Date.now()-f.ts<3600000).length;
+  if(n>0){b.style.display='flex';b.textContent=n>9?'9+':n;}else{b.style.display='none';}
+}
+function relTime(ts){
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago';
+}
+function renderLog(){
+  const list=document.getElementById('logList');
+  if(!flipLog.length){list.innerHTML='<div class="log-empty">No flips recorded yet</div>';return;}
+  list.innerHTML=flipLog.slice(0,50).map(f=>`
+    <div class="log-item">
+      <div class="log-icon ${f.to}">${f.to==='bull'?'▲':'▼'}</div>
+      <div class="log-content">
+        <div class="log-sym">${f.sym} <span style="font-weight:400;color:var(--muted)">${f.name}</span></div>
+        <div class="log-detail">${f.tf.toUpperCase()} · ${f.from.toUpperCase()} → ${f.to.toUpperCase()}</div>
+      </div>
+      <div class="log-time">${relTime(f.ts)}</div>
+    </div>`).join('');
+}
+function openDrawer(){document.getElementById('drawer').classList.add('open');document.getElementById('drawerOverlay').style.display='block';renderLog();}
+function closeDrawer(){document.getElementById('drawer').classList.remove('open');document.getElementById('drawerOverlay').style.display='none';}
+
+// ─── Alignment ─────────────────────────────────────────────────────────────────
+function getAlignment(sym){
+  const sigs=TF_ALL.map(tf=>(sigCache[tf]||{})[sym]);
+  const valid=sigs.filter(s=>s==='bull'||s==='bear');
+  if(!valid.length)return{score:0,dir:'wait',total:0};
+  const bulls=valid.filter(s=>s==='bull').length;
+  const bears=valid.filter(s=>s==='bear').length;
+  if(bulls>=bears)return{score:bulls,dir:'bull',total:valid.length};
+  return{score:bears,dir:'bear',total:valid.length};
+}
+function alignHTML(sym){
+  const{score,dir,total}=getAlignment(sym);
+  if(!score)return`<span style="color:var(--dim);font-size:10px">—</span>`;
+  const lbl=`${score}/${total}`, arrow=dir==='bull'?'▲':'▼';
+  let cls='align-2';
+  if(dir==='bull'&&score>=4)cls='align-4';
+  else if(dir==='bull'&&score>=3)cls='align-3';
+  else if(dir==='bear'&&score>=4)cls='align-bear-4';
+  else if(dir==='bear'&&score>=3)cls='align-bear-3';
+  return`<div class="align-pip ${cls}">${arrow} ${lbl}</div>`;
+}
+
+// ─── Row tinting ───────────────────────────────────────────────────────────────
+function rowClass(sym){
+  const al=getAlignment(sym);
+  if(al.score>=3&&al.dir==='bull')return'row-bull';
+  if(al.score>=3&&al.dir==='bear')return'row-bear';
+  return'';
+}
+
+// ─── % change since flip ───────────────────────────────────────────────────────
+function pctHTML(sym,tf){
+  const flipP=(flipPriceCache[tf]||{})[sym];
+  const curP=priceCache[sym];
+  if(!flipP||!curP)return`<span class="pct-na">—</span>`;
+  const pct=((curP-flipP)/flipP)*100;
+  const sig=(sigCache[tf]||{})[sym];
+  const cls=sig==='bull'?'pct-bull':'pct-bear';
+  const arrow=pct>=0?'▲':'▼';
+  return`<span class="${cls}">${arrow}${Math.abs(pct).toFixed(1)}%</span>`;
+}
+
+// ─── Sorting ───────────────────────────────────────────────────────────────────
+function setSort(col){
+  if(sortCol===col)sortDir*=-1; else{sortCol=col;sortDir=1;}
+  document.querySelectorAll('thead th').forEach(th=>th.classList.remove('sorted'));
+  const el=document.getElementById('th-'+col); if(el)el.classList.add('sorted');
+  render();
+}
+function sortVal(a){
+  if(sortCol==='align'){const al=getAlignment(a.sym);return al.dir==='bull'?-al.score:al.score;}
+  if(sortCol==='pct'){
+    const fp=(flipPriceCache[currentTF]||{})[a.sym], cp=priceCache[a.sym];
+    if(!fp||!cp)return 9999;
+    return-Math.abs((cp-fp)/fp*100);
+  }
+  const s=(sigCache[sortCol]||{})[a.sym];
+  return s==='bull'?0:s==='bear'?1:2;
+}
+
+function sigHTML(s){
+  const L={bull:'BULL',bear:'BEAR',wait:'...',err:'ERR'};
+  return `<div class="sig ${s||'wait'}"><div class="sdot"></div>${L[s]||'...'}</div>`;
+}
+
+function fmtPrice(p){
+  if(!p||isNaN(p)) return'—';
+  if(p>=10000) return'$'+p.toLocaleString('en-US',{maximumFractionDigits:0});
+  if(p>=1) return'$'+p.toFixed(2);
+  return'$'+p.toFixed(4);
+}
+
+const ORD={bull:0,bear:1,wait:2,err:3};
+
+function render(){
+  const tbody=document.getElementById('tbody');
+  const tS=sigCache[currentTF]||{}, tF=flipCache[currentTF]||{};
+  let rows=ASSETS.filter(a=>{
+    if(currentNarr!=='all'&&a.n!==currentNarr) return false;
+    const s=tS[a.sym];
+    if(currentSig==='bull') return s==='bull';
+    if(currentSig==='bear') return s==='bear';
+    if(currentSig==='flip') return!!tF[a.sym];
+    return true;
+  });
+  rows.sort((a,b)=>{
+    const fa=tF[a.sym]?0:1,fb=tF[b.sym]?0:1;
+    if(fa!==fb) return fa-fb;
+    return(sortVal(a)-sortVal(b))*sortDir;
+  });
+  if(!rows.length){tbody.innerHTML=`<tr class="msg-row"><td colspan="10">No assets match this filter</td></tr>`;updateStats();return;}
+  tbody.innerHTML=rows.map((a,i)=>{
+    const sigs=TF_ALL.map(tf=>(sigCache[tf]||{})[a.sym]||'wait');
+    const flip=tF[a.sym];
+    return`<tr class="${rowClass(a.sym)}">
+      <td style="color:var(--muted);font-size:10px">${i+1}</td>
+      <td><div class="asym">${a.sym}${flip?'<span class="flip-badge">FLIP</span>':''}</div><div class="aname">${a.name}</div></td>
+      <td><span class="ntag t-${a.n}">${NL[a.n]||a.n}</span></td>
+      <td style="text-align:center">${sigHTML(sigs[0])}</td>
+      <td style="text-align:center">${sigHTML(sigs[1])}</td>
+      <td style="text-align:center">${sigHTML(sigs[2])}</td>
+      <td style="text-align:center">${sigHTML(sigs[3])}</td>
+      <td style="text-align:center">${alignHTML(a.sym)}</td>
+      <td class="pct-cell">${pctHTML(a.sym,currentTF)}</td>
+      <td class="price">${fmtPrice(priceCache[a.sym])}</td>
+    </tr>`;
+  }).join('');
+  updateStats();
+}
+
+function updateStats(){
+  const tS=sigCache[currentTF]||{},tF=flipCache[currentTF]||{};
+  let bull=0,bear=0,neut=0,flips=0;
+  ASSETS.forEach(a=>{const s=tS[a.sym]||'wait';if(s==='bull')bull++;else if(s==='bear')bear++;else neut++;if(tF[a.sym])flips++;});
+  document.getElementById('sBull').textContent=bull;
+  document.getElementById('sBear').textContent=bear;
+  document.getElementById('sNeut').textContent=neut;
+  document.getElementById('sFlip').textContent=flips;
+}
+
+async function loadAll(){
+  if(isLoading) return;
+  isLoading=true; errLog=[];
+  document.getElementById('liveDot').className='dot loading';
+  document.getElementById('refreshBtn').disabled=true;
+  document.getElementById('errBox').style.display='none';
+  TF_ALL.forEach(tf=>{sigCache[tf]={};flipCache[tf]={};});
+  const total=ASSETS.length*TF_ALL.length; let done=0;
+  for(const a of ASSETS){
+    for(const tf of TF_ALL){
+      document.getElementById('progLbl').textContent=`Loading ${a.sym} · ${tf.toUpperCase()} — ${done+1} of ${total}`;
+      document.getElementById('progFill').style.width=Math.round(done/total*100)+'%';
+      const res=await fetchOHLC(a.td,tf);
+      if(res.error){
+        sigCache[tf][a.sym]='err'; flipCache[tf][a.sym]=false; errLog.push(`${a.sym} ${tf}: ${res.error}`);
+      } else {
+        const{highs,lows,closes,lastPrice}=res;
+        const cur=getSig(highs,lows,closes), prev=getPrev(highs,lows,closes);
+        // Detect new flip vs previous load
+        const oldSig=(sigCache[tf]||{})[a.sym];
+        sigCache[tf][a.sym]=cur;
+        flipCache[tf][a.sym]=cur!==prev;
+        if(tf==='1day') priceCache[a.sym]=lastPrice;
+        // Store flip price for % calculation
+        if(!flipPriceCache[tf])flipPriceCache[tf]={};
+        if(cur!==prev){
+          // Flip on last bar — store the current price as flip price
+          flipPriceCache[tf][a.sym]=lastPrice||priceCache[a.sym];
+        }
+        // Record to flip log only when signal genuinely changed vs previous load
+        if(oldSig&&oldSig!=='wait'&&oldSig!=='err'&&cur!==oldSig&&cur!=='wait'&&cur!=='err'){
+          recordFlip(a.sym,a.name,tf,oldSig,cur);
+        }
+      }
+      done++; render(); await sleep(DELAY_MS);
+    }
+  }
+  document.getElementById('progFill').style.width='100%';
+  const ec=errLog.length;
+  document.getElementById('progLbl').textContent=ec?`Done — ${total-ec}/${total} loaded · ${ec} errors`:`All ${ASSETS.length} assets loaded ✓`;
+  if(ec){const b=document.getElementById('errBox');b.style.display='block';b.innerHTML=`<strong>Errors (${ec}):</strong><br>`+errLog.slice(0,8).join('<br>')+(ec>8?`<br>...and ${ec-8} more`:'');}
+  document.getElementById('liveDot').className=ec?'dot error':'dot done';
+  document.getElementById('lastUpdated').textContent='Updated '+new Date().toLocaleTimeString();
+  document.getElementById('footNote').textContent=`${ASSETS.length} assets · ${total} API calls · free tier 8/min`;
+  document.getElementById('refreshBtn').disabled=false;
+  isLoading=false;
+}
+
+function refreshAll(){if(isLoading)return;priceCache={};loadFlipLog(); updateLogBadge();
+loadAll();}
+function setTF(btn,tf){document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentTF=tf;render();}
+function setNarr(btn,n){document.querySelectorAll('.np').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentNarr=n;render();}
+function setSig(btn,s){document.querySelectorAll('.sf').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentSig=s;render();}
+
+loadFlipLog(); updateLogBadge();
+loadAll();
+</script>
+</body>
+</html>
